@@ -1,0 +1,17 @@
+{
+  "name": "crauler_pup",
+  "version": "0.0.1",
+  "description": "A crauler project",
+  "main": "crawler.js",
+  "private": true,
+  "scripts": {
+    "ht_server": "../ht_server.js"
+  },
+  "dependencies": {
+    "async-mutex": "^0.3.1",
+    "htcrawl": "./htcrawl",
+    "lodash": "^4.17.15",
+    "socket.io": "^4.0.0"
+  },
+  "devDependencies": {}
+}

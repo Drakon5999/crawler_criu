@@ -1,0 +1,11 @@
+.idea
+venv
+__pycache__
+tests
+old_files
+crawler/old_files
+env
+criu_test
+log.txt
+errlog.txt
+hints.txt
