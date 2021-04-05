@@ -42,12 +42,16 @@ async function send_failed_analise(socket, selector, current_url) {
     socket.emit("failed_analise", {selector, current_url});
 }
 
-async function send_finish(socket) {
+function send_finish(socket) {
+    console.log("finish")
     socket.emit("finish", {});
 }
 
 // Навешиваем обработчик на подключение нового клиента
+var true_socket = [];  // hack for correct restoring
+// todo correct destroy htcap
 io.sockets.on('connection', async function (socket) {
+  true_socket.push(socket)
   var events_whitelist = {} // url -> element -> event
   console.log('connection');
   socket.on('continue', async function (data) {
@@ -134,7 +138,7 @@ io.sockets.on('connection', async function (socket) {
         });
 
         // Start crawling!
-        crawler.start().then(() => send_finish(socket)).catch(() => send_finish(socket));
+        crawler.start().then(() => send_finish(true_socket[true_socket.length - 1])).catch(() => send_finish(true_socket[true_socket.length - 1]));
       });
     } catch (e) {
       console.log(e);

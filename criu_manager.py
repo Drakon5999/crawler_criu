@@ -52,8 +52,9 @@ class CRIUController:  # todo manage multiple pids
         self.current_dump += 1
         dirname = os.path.join(self.CRIU_BASE_DIR, str(self.current_dump))
         os.makedirs(dirname, mode=0o777, exist_ok=False)
+        # --action-script "./tmp-files.sh ./user-dir/*"
         returncode = subprocess.call(
-            "{command} dump --tree {tree} --images-dir {dir} --shell-job --tcp-established --ext-unix-sk --ghost 1900M {keep}".format(
+            '{command} dump --tree {tree} --images-dir {dir} --shell-job --tcp-established --ext-unix-sk --ghost 1900M {keep}'.format(
                 command='./criu-ns' if self.is_restored else 'criu',
                 tree=self.current_proc,
                 dir=dirname,
@@ -85,7 +86,7 @@ class CRIUController:  # todo manage multiple pids
             await self.kill()
         dump_id = dump_id or self.current_dump
         subprocess.Popen(
-            "./criu-ns restore --images-dir {dir} --shell-job --tcp-established --ext-unix-sk --ghost 1900M".format(
+            './criu-ns restore --images-dir {dir} --shell-job --tcp-established --ext-unix-sk --ghost 1900M'.format(
                 dir=os.path.join(self.CRIU_BASE_DIR, str(dump_id))
             ).split())
 

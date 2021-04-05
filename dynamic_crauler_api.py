@@ -84,6 +84,7 @@ class DynamicAPI:
                                 self.CRIUWhiteListEvents[full_html][current_url][sel].append(ev)
 
     async def _finish(self, data):
+        print("got finish")
         self.finished = True
         self.IsTaskComplete.set()
         self.PendingUrls.clear()
@@ -231,8 +232,11 @@ async def test_main():
     api = await (DynamicAPI().init())
     # await api.add_task({"url": "https://security-crawl-maze.app/javascript/frameworks/angular/"})
     await asyncio.sleep(5)
+    print("send continue")
     await api.send_continue()
+    print("wait")
     results = await api.get_results()
+    print("got it")
     await asyncio.sleep(50)
 
     # # print(results)

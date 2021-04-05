@@ -50,7 +50,8 @@ exports.launch = async function(url, options){
 		'--disable-web-security',
 		'--allow-running-insecure-content',
 		'--proxy-bypass-list=<-loopback>',
-		'--window-size=1300,1000'
+		'--window-size=1300,1000',
+		'--user-data-dir=/tmp/chrome_user_dir'
 	];
 	chromeArgs = union_arrays(chromeArgs, args);
 	for(let a in defaults){
@@ -64,7 +65,13 @@ exports.launch = async function(url, options){
 		chromeArgs.push('--auto-open-devtools-for-tabs');
 	}
 
-	var browser = await puppeteer.launch({ignoreDefaultArgs: true, headless: options.headlessChrome, ignoreHTTPSErrors: true, args:chromeArgs});
+	var browser = await puppeteer.launch({
+		ignoreDefaultArgs: true,
+		headless: options.headlessChrome,
+		ignoreHTTPSErrors: true,
+		args:chromeArgs,
+		userDataDir: "/tmp/chrome_user_dir"
+	});
 	var c = new Crawler(url, options, browser);
 	await c.bootstrapPage(browser);
 	return c;
