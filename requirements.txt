@@ -2,3 +2,4 @@ python-socketio
 requests
 aiohttp
 sortedcontainers
+beautifulsoup4

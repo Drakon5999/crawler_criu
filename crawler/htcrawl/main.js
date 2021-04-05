@@ -19,9 +19,25 @@ const textComparator = require("./shingleprint");
 const utils = require('./utils');
 const process = require('process');
 
+function union_arrays (x, y) {
+  let obj = {};
+  for (let i = x.length-1; i >= 0; -- i)
+     obj[x[i]] = x[i];
+  for (let i = y.length-1; i >= 0; -- i)
+     obj[y[i]] = y[i];
+  let res = []
+  for (let k in obj) {
+    if (obj.hasOwnProperty(k))  // <-- optional
+      res.push(obj[k]);
+  }
+  return res;
+}
+
+
 exports.launch = async function(url, options){
 	options = options || {};
-	const chromeArgs = [
+	let args = puppeteer.defaultArgs().filter(arg => arg !== '--disable-dev-shm-usage');
+	let chromeArgs = [
 		'--no-sandbox',
 		'--disable-setuid-sandbox',
 		'--disable-gpu',
@@ -36,6 +52,7 @@ exports.launch = async function(url, options){
 		'--proxy-bypass-list=<-loopback>',
 		'--window-size=1300,1000'
 	];
+	chromeArgs = union_arrays(chromeArgs, args);
 	for(let a in defaults){
 		if(!(a in options)) options[a] = defaults[a];
 	}
@@ -47,7 +64,7 @@ exports.launch = async function(url, options){
 		chromeArgs.push('--auto-open-devtools-for-tabs');
 	}
 
-	var browser = await puppeteer.launch({headless: options.headlessChrome, ignoreHTTPSErrors: true, args:chromeArgs});
+	var browser = await puppeteer.launch({ignoreDefaultArgs: true, headless: options.headlessChrome, ignoreHTTPSErrors: true, args:chromeArgs});
 	var c = new Crawler(url, options, browser);
 	await c.bootstrapPage(browser);
 	return c;
@@ -87,7 +104,7 @@ function Crawler(targetUrl, options, browser){
 		formsubmit: function(){},
 		fillinput: function(){},
 		//requestscompleted: function(){},
-		//dommodified: function(){},
+		dommodified: function(){},
 		newdom: function(){},
 		navigation: function(){},
 		domcontentloaded: function(){},
@@ -96,7 +113,8 @@ function Crawler(targetUrl, options, browser){
 		earlydetach: function(){},
 		triggerevent: function(){},
 		eventtriggered: function(){},
-		pageinitialized: function(){}
+		pageinitialized: function(){},
+		want_to_analise: function(){},
 		//end: function(){}
 	}
 
@@ -594,7 +612,7 @@ Crawler.prototype.popMutation = async function(){
 
 
 Crawler.prototype.getEventsForElement = async function(el){
-	const events = await this._page.evaluate( el => window.__PROBE__.getEventsForElement(el), el != this._page ? el : this.documentElement);
+	const events = await this._page.evaluate( el => {return window.__PROBE__.getEventsForElement(el)}, el != this._page ? el : this.documentElement);
 	const l = await this.getElementEventListeners(el);
 	return events.concat(l.listeners.map(i => i.type));
 }
@@ -643,8 +661,8 @@ Crawler.prototype.isAttachedToDOM = async function(node){
 };
 
 Crawler.prototype.triggerElementEvent = async function(el, event){
-	await this._page.evaluate((el, event) => {
-		window.__PROBE__.triggerElementEvent(el, event)
+	return await this._page.evaluate((el, event) => {
+		return window.__PROBE__.triggerElementEvent(el, event)
 	}, el != this._page ? el : this.documentElement, event)
 }
 
@@ -662,21 +680,23 @@ Crawler.prototype.getElementText = async function(el){
 
 
 Crawler.prototype.fillInputValues = async function(el){
-	await this._page.evaluate(el => {
-		window.__PROBE__.fillInputValues(el);
+	return await this._page.evaluate(el => {
+		return window.__PROBE__.fillInputValues(el);
 	}, el != this._page ? el : this.documentElement)
 }
 
 
 
 Crawler.prototype.getElementSelector = async function(el){
-	await this._page.evaluate(el => {
-		window.__PROBE__.getElementSelector(el);
+	return await this._page.evaluate(el => {
+		return window.__PROBE__.getElementSelector(el);
 	}, el != this._page ? el : this.documentElement)
 }
 
 
 Crawler.prototype.crawlDOM = async function(node, layer){
+	// this._page.on('console', consoleObj => console.log(consoleObj.text()));
+
 	if(this._stop) return;
 	node = node || this._page;
 	layer = typeof layer != 'undefined' ? layer : 0;
@@ -702,17 +722,26 @@ Crawler.prototype.crawlDOM = async function(node, layer){
 	if(layer == 0){
 		await this.dispatchProbeEvent("start");
 	}
+	var elSelectors = [];
+	var elEvents = {}
+	for (let el of dom) {
+		let curSelector = await this.getElementSelector(el)
+		elSelectors.push(curSelector);
+		elEvents[curSelector] = await this.getEventsForElement(el);
+	}
+	await this.dispatchProbeEvent("want_to_analise", {selectors: elSelectors, events: elEvents});
 
 	//let analyzed = 0;
-	for(let el of dom){
+	for(var el_n = 0; el_n < dom.length; el_n++){
+		var el = dom[el_n];
 		if(this._stop) return;
 		//console.log("analyze element " + el);
-		let elsel = await this.getElementSelector(el);
+		let elsel = elSelectors[el_n];
 		if(! await this.isAttachedToDOM(el)){ // @TODO TEST ME
 			uRet = await this.dispatchProbeEvent("earlydetach", { node: elsel });
 			if(!uRet) continue;
 		}
-		for(let event of await this.getEventsForElement(el)){
+		for(let event of elEvents[elsel]) {
 			if(this._stop) return;
 			if(this.options.triggerEvents){
 				uRet = await this.dispatchProbeEvent("triggerevent", {node: elsel, event: event});
@@ -743,18 +772,36 @@ Crawler.prototype.crawlDOM = async function(node, layer){
 				}
 			}
 
-			if(newEls.length > 0){
-				if(this.options.skipDuplicateContent){
-					for(var a = 0; a < newEls.length; a++){
+			if(newEls.length > 0) {
+				if (this.options.skipDuplicateContent) {
+					for (var a = 0; a < newEls.length; a++) {
 						var txt = await this.getElementText(newEls[a]);
-						if(txt){
+						if (txt) {
 							this.domModifications.push(txt);
 						}
 					}
 				}
 				//console.log("added elements " + newEls.length)
-				if(this.options.crawlmode == "random"){
+				if (this.options.crawlmode == "random") {
 					this.randomizeArray(newEls);
+				}
+
+
+				{
+					let elSelectors = [];
+					let elEvents = {}
+					for(let ne of newEls) {
+						let domArr = await this.getDOMTreeAsArray(ne);
+						let dom = [ne].concat(domArr);
+						for (let el of dom) {
+							let curSelector = await this.getElementSelector(el)
+							elSelectors.push(curSelector);
+							elEvents[curSelector] = await this.getEventsForElement(el);
+						}
+					}
+					uRet = await this.dispatchProbeEvent("dommodified", {
+						selectors: elSelectors, events: elEvents
+					});
 				}
 				for(let ne of newEls){
 					uRet = await this.dispatchProbeEvent("newdom", {
