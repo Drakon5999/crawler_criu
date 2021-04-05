@@ -49,7 +49,7 @@ function send_finish(socket) {
 
 // Навешиваем обработчик на подключение нового клиента
 var true_socket = [];  // hack for correct restoring
-// todo correct destroy htcap
+// todo correct work with sockets
 io.sockets.on('connection', async function (socket) {
   true_socket.push(socket)
   var events_whitelist = {} // url -> element -> event
@@ -65,7 +65,7 @@ io.sockets.on('connection', async function (socket) {
     }
     let process_communication = async function(e, crawler) {
         console.log(e.params.request.type + " to " + e.params.request.url);
-        await send_discovered(socket, e.params.request.url, e.params.request.type, crawler.page().url());
+        await send_discovered(true_socket[true_socket.length - 1], e.params.request.url, e.params.request.type, crawler.page().url());
     }
     let get_html = async function(crawler) {
       return await crawler.page().evaluate(() => document.body.innerHTML)
@@ -83,16 +83,16 @@ io.sockets.on('connection', async function (socket) {
 
         crawler.on("pageInitialized", async (e, crawler) => {
           console.log("page initialized");
-          await send_links_collected(socket, await GetLinks(crawler.page()));
-          await send_initial_html(socket, await get_html(crawler));
+          await send_links_collected(true_socket[true_socket.length - 1], await GetLinks(crawler.page()));
+          await send_initial_html(true_socket[true_socket.length - 1], await get_html(crawler));
         });
         crawler.on("start", async e => {
           console.log("crawler started");
         });
         crawler.on("dommodified", async (e, crawler) => {
           // it is time to create a checkpoint
-          await send_links_collected(socket, await GetLinks(crawler.page()));
-          await send_new_dom(socket, e.params.selectors, e.params.events, crawler.page().url(), await get_html(crawler));
+          await send_links_collected(true_socket[true_socket.length - 1], await GetLinks(crawler.page()));
+          await send_new_dom(true_socket[true_socket.length - 1], e.params.selectors, e.params.events, crawler.page().url(), await get_html(crawler));
           await mutex_newdom.acquire();
           console.log("new dom");
         });
@@ -107,15 +107,15 @@ io.sockets.on('connection', async function (socket) {
         crawler.on("want_to_analise", async (e, crawler) => {
           // here we need to restore and analise detached event
           console.log("want_to_analise event");
-          await send_events_and_selectors(socket, e.params.selectors, e.params.events, crawler.page().url(), await get_html(crawler));
+          await send_events_and_selectors(true_socket[true_socket.length - 1], e.params.selectors, e.params.events, crawler.page().url(), await get_html(crawler));
         });
         crawler.on("earlydetach", async (e, crawler) => {
           console.log("earlydetach event"); // todo correct it, becouse we dont know when it was detached
-          await send_failed_analise(socket, e.params.node, crawler.page().url());
+          await send_failed_analise(true_socket[true_socket.length - 1], e.params.node, crawler.page().url());
         });
         crawler.on("triggerevent", async (e, crawler) => {
           // here we need to jump to event that we want
-          await send_current_event_and_selector(socket, e.params.node, e.params.event, crawler.page().url(), await get_html(crawler));
+          await send_current_event_and_selector(true_socket[true_socket.length - 1], e.params.node, e.params.event, crawler.page().url(), await get_html(crawler));
           if (IsObjectEmpty(events_whitelist)) {
             console.log("triggerevent event empty whitelist", e.params.event, e.params.node);
             return true;
