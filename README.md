@@ -5,5 +5,5 @@
 python -m venv env
 source env/bin/activate
 pip install -r requirements.txt 
-python dynamic_crauler_api.py
+python main_criu.py
 ```

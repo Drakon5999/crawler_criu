@@ -2,7 +2,7 @@ import asyncio
 import subprocess
 import os
 from collections import defaultdict
-
+import time
 import html_utils
 
 
@@ -29,13 +29,15 @@ class CRIUDataBase:
 
 
 class CRIUController:  # todo manage multiple pids
-    CRIU_BASE_DIR = "criu_test"
+    CRIU_BASE_DIR = "/mnt/ramfs-folder"
 
     def __init__(self):
         self.proc_running = False
         self.is_restored = False
         self.current_proc = None
         self.current_dump = 0
+        self.current_restored_parent = 0
+        self.current_restored = 0
 
     async def run_new_crawler(self):
         self.is_restored = False
@@ -49,26 +51,33 @@ class CRIUController:  # todo manage multiple pids
         self.proc_running = True
 
     async def dump_process(self, keep_alive=False):
+        dump_t = time.time()
         self.current_dump += 1
+        track = False
+        if self.current_restored_parent != 0:
+            track = True
+
         dirname = os.path.join(self.CRIU_BASE_DIR, str(self.current_dump))
         os.makedirs(dirname, mode=0o777, exist_ok=False)
         # --action-script "./tmp-files.sh ./user-dir/*"
         returncode = subprocess.call(
-            '{command} dump --tree {tree} --images-dir {dir} --shell-job --tcp-established --ext-unix-sk --ghost 1900M {keep}'.format(
+            '{command} dump --tree {tree} --images-dir {dir} --shell-job --tcp-established --ext-unix-sk --ghost 1900M {keep} --track-mem {track}'.format(
                 command='./criu-ns' if self.is_restored else 'criu',
                 tree=self.current_proc,
                 dir=dirname,
-                keep="" if not keep_alive else "--leave-running"
+                keep="" if not keep_alive else "--leave-running",
+                track="" if not track else "--prev-images-dir ../{}/".format(self.current_restored_parent)
             ).split(),
         )
-
+        print("!!!!!!!DUMPTIME", time.time() - dump_t)
         # if returncode != 0:
         #     raise ChildProcessError("CRIU PROCESS ERROR!")
-
+        self.current_restored_parent = self.current_restored
+        self.current_restored = self.current_dump
         print("CRIU RETURN CODE", returncode)
         if not keep_alive:
             self.proc_running = False
-        return self.current_dump
+        return self.current_restored, self.current_restored_parent
 
     async def kill(self):
         self.proc_running = False
@@ -80,17 +89,23 @@ class CRIUController:  # todo manage multiple pids
         self.proc_running = False
         return subprocess.call("rm -rf {}/*".format(self.CRIU_BASE_DIR), shell=True)
 
-    async def restore_dump(self, dump_id=None):
+    async def restore_dump(self, dump_ids):
+        dump_id, parent_id = dump_ids
         print("restoring!!!!")
         if self.proc_running:
             await self.kill()
-        dump_id = dump_id or self.current_dump
+        track = False
+        if parent_id:
+            track = True
         subprocess.Popen(
-            './criu-ns restore --images-dir {dir} --shell-job --tcp-established --ext-unix-sk --ghost 1900M'.format(
-                dir=os.path.join(self.CRIU_BASE_DIR, str(dump_id))
+            './criu-ns restore --images-dir {dir} --shell-job --tcp-established --ext-unix-sk --ghost 1900M --track-mem {track}'.format(
+                dir=os.path.join(self.CRIU_BASE_DIR, str(dump_id)),
+                track="" if not track else "--prev-images-dir ../{}/".format(parent_id)
             ).split())
 
         self.is_restored = True
+        self.current_restored = dump_id
+        self.current_restored_parent = parent_id
         await asyncio.sleep(0.1)  # todo remove it
         # todo check that restored correctly
         self.proc_running = True
