@@ -1,19 +1,23 @@
 import asyncio
+import time
 from queue import Queue
 from dynamic_crauler_api import DynamicAPI
 from pprint import pprint
 
 
 async def main():
+    speedtest_timer = time.time()
     api = await (DynamicAPI().init())
     visited_urls = set()
     to_visit_urls = set()
     urls_queue = Queue()
-    start_url = 'https://security-crawl-maze.app/javascript/frameworks/'
-    FILTER = 'https://security-crawl-maze.app'
+    start_url = 'https://music.yandex.ru'
+    FILTER = 'https://music.yandex.ru'
     urls_queue.put(start_url)
     visited_urls.add(start_url)
-    while not urls_queue.empty():
+    limitoj = 5
+    while limitoj and not urls_queue.empty():
+        limitoj -= 1
         url = urls_queue.get()
         print("Scanning", url)
         await api.add_url(url)
@@ -45,6 +49,7 @@ async def main():
     print()
     print("analysed events")
     pprint(api.AnalysedEvents)
+    print("Result timer ", time.time() - speedtest_timer)
     await api.destroy()
 
 

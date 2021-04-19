@@ -51,7 +51,8 @@ exports.launch = async function(url, options){
 		'--allow-running-insecure-content',
 		'--proxy-bypass-list=<-loopback>',
 		'--window-size=1300,1000',
-		'--user-data-dir=/tmp/chrome_user_dir'
+		'--user-data-dir=/tmp/chrome_user_dir',
+		'--dbus-stub'
 	];
 	chromeArgs = union_arrays(chromeArgs, args);
 	for(let a in defaults){

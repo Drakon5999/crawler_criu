@@ -67,7 +67,7 @@ class DynamicAPI:
         self.UrlsCollected.add(await (Url()).from_string(url))
         self.UrlsCollectedRaw.add(url)
 
-    async def  _initial_html(self, data):
+    async def _initial_html(self, data):
         # todo realize it
         pass
 
@@ -158,7 +158,7 @@ class DynamicAPI:
     async def _discovered(self, data):
         cur_url = data['current_url']
         del data['current_url']
-        self.DiscoveredUrls[cur_url].add(data)
+        self.DiscoveredUrls[cur_url].add(data['url'])
 
     async def add_task(self, task):
         self.finished = False
@@ -210,6 +210,7 @@ class DynamicAPI:
     async def send_continue(self):
         async with self.AnalysedLock:
             await self.sio.emit("continue", self.WhiteListEvents)
+            pass
 
     async def get_whitelist_not_empty(self):
         if self.criu:
@@ -229,21 +230,23 @@ class DynamicAPI:
 
 
 async def test_main():
-    api = await (DynamicAPI().init())
-    # await api.add_task({"url": "https://security-crawl-maze.app/javascript/frameworks/angular/"})
-    await asyncio.sleep(5)
-    print("send continue")
-    await api.send_continue()
-    print("wait")
-    results = await api.get_results()
-    print("got it")
-    await asyncio.sleep(50)
+    # api = await (DynamicAPI().init())
+    # await api.add_task({"url": "https://translate.yandex.ru"})
+    # # await api.add_task({"url": "https://security-crawl-maze.app/javascript/frameworks/angular/"})
+    # # await asyncio.sleep(5)
+    # # print("send continue")
+    # # await api.send_continue()
+    # # print("wait")
+    # results = await api.get_results()
+    # # print("got it")
+    # # await asyncio.sleep(50)
+    #
+    # # # print(results)
+    # # print("restoring...")
+    # # print("send continue")
+    # # await api.sio.wait()
+    # await api.destroy()
 
-    # # print(results)
-    # print("restoring...")
-    # print("send continue")
-    # await api.sio.wait()
-    await api.destroy()
     pass
 
 

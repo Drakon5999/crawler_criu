@@ -3,6 +3,7 @@ import subprocess
 import os
 from collections import defaultdict
 import time
+import re
 import html_utils
 
 
@@ -54,21 +55,32 @@ class CRIUController:  # todo manage multiple pids
         dump_t = time.time()
         self.current_dump += 1
         track = False
-        if self.current_restored_parent != 0:
-            track = True
+        # if self.current_restored_parent != 0:
+        #     track = True
 
         dirname = os.path.join(self.CRIU_BASE_DIR, str(self.current_dump))
         os.makedirs(dirname, mode=0o777, exist_ok=False)
+
+        # destroy external sockets
+        otp = (subprocess.check_output(['lsof', '+E', '-aUc', 'chrome'])).decode("utf-8")
+        res = re.findall('(chrome.*dbus-daem)', otp)
+        if res:
+            external = res[0].split()[-4]
+        else:
+            external = None
+            # print(res[-4])
+
         # --action-script "./tmp-files.sh ./user-dir/*"
-        returncode = subprocess.call(
-            '{command} dump --tree {tree} --images-dir {dir} --shell-job --tcp-established --ext-unix-sk --ghost 1900M {keep} --track-mem {track}'.format(
+        command = '{command} dump --tree {tree} --images-dir {dir} --shell-job --tcp-established --ext-unix-sk --ghost 1900M {keep} --track-mem {track} --file-locks {external}'.format(
                 command='./criu-ns' if self.is_restored else 'criu',
                 tree=self.current_proc,
                 dir=dirname,
                 keep="" if not keep_alive else "--leave-running",
-                track="" if not track else "--prev-images-dir ../{}/".format(self.current_restored_parent)
-            ).split(),
-        )
+                track="" if not track else "--prev-images-dir ../{}/".format(self.current_restored_parent),
+                external="--external unix[{}]".format(external) if external else ''
+            )
+        print(command)
+        returncode = subprocess.call(command.split())
         print("!!!!!!!DUMPTIME", time.time() - dump_t)
         # if returncode != 0:
         #     raise ChildProcessError("CRIU PROCESS ERROR!")
@@ -95,10 +107,10 @@ class CRIUController:  # todo manage multiple pids
         if self.proc_running:
             await self.kill()
         track = False
-        if parent_id:
-            track = True
+        # if parent_id:
+        #     track = True
         subprocess.Popen(
-            './criu-ns restore --images-dir {dir} --shell-job --tcp-established --ext-unix-sk --ghost 1900M --track-mem {track}'.format(
+            './criu-ns restore --images-dir {dir} --shell-job --tcp-established --ext-unix-sk --ghost 1900M --track-mem {track} --file-locks --tcp-close'.format(
                 dir=os.path.join(self.CRIU_BASE_DIR, str(dump_id)),
                 track="" if not track else "--prev-images-dir ../{}/".format(parent_id)
             ).split())

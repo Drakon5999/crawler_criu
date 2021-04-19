@@ -9,3 +9,4 @@ criu_test
 log.txt
 errlog.txt
 hints.txt
+report*

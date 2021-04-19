@@ -93,6 +93,7 @@ io.sockets.on('connection', async function (socket) {
           // it is time to create a checkpoint
           await send_links_collected(true_socket[true_socket.length - 1], await GetLinks(crawler.page()));
           await send_new_dom(true_socket[true_socket.length - 1], e.params.selectors, e.params.events, crawler.page().url(), await get_html(crawler));
+          // console.log(crawler.page.remoteAddress().ip);
           await mutex_newdom.acquire();
           console.log("new dom");
         });
