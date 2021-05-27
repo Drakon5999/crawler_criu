@@ -1,23 +1,26 @@
 import asyncio
+import sys
 import time
 from queue import Queue
 from dynamic_crauler_api import DynamicAPI
 from pprint import pprint
 
 
+# for tests only
+# main_simple.py http://example.com/ http://example.com/ 1000
 async def main():
     speedtest_timer = time.time()
     api = await (DynamicAPI().init())
     visited_urls = set()
     to_visit_urls = set()
     urls_queue = Queue()
-    start_url = 'https://music.yandex.ru'
-    FILTER = 'https://music.yandex.ru'
+    start_url = sys.argv[1]
+    FILTER = sys.argv[2]
     urls_queue.put(start_url)
     visited_urls.add(start_url)
-    limitoj = 5
-    while limitoj and not urls_queue.empty():
-        limitoj -= 1
+    limit = sys.argv[3]
+    while limit and not urls_queue.empty():
+        limit -= 1
         url = urls_queue.get()
         print("Scanning", url)
         await api.add_url(url)
@@ -26,7 +29,6 @@ async def main():
 
         for link in api.UrlsCollectedRaw:
             link = str(link)
-            # print(link,link.startswith('https://security-crawl-maze.app'))
             if link.startswith(FILTER):
                 if link not in visited_urls and link not in to_visit_urls:
                     urls_queue.put(link)

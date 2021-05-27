@@ -4,7 +4,6 @@ import os
 from collections import defaultdict
 import time
 import re
-import html_utils
 
 
 class CRIUElement:
@@ -41,6 +40,9 @@ class CRIUController:  # todo manage multiple pids
         self.current_restored = 0
 
     async def run_new_crawler(self):
+        with open('hints.txt', 'a+'):
+            pass
+
         self.is_restored = False
         assert not self.proc_running
         subprocess.call("rm -rf errlog.txt log.txt", shell=True)
@@ -65,10 +67,9 @@ class CRIUController:  # todo manage multiple pids
         otp = (subprocess.check_output(['lsof', '+E', '-aUc', 'chrome'])).decode("utf-8")
         res = re.findall('(chrome.*dbus-daem)', otp)
         if res:
-            external = res[0].split()[-4]
+            external = [s.split()[-4] for s in res]
         else:
             external = None
-            # print(res[-4])
 
         # --action-script "./tmp-files.sh ./user-dir/*"
         command = '{command} dump --tree {tree} --images-dir {dir} --shell-job --tcp-established --ext-unix-sk --ghost 1900M {keep} --track-mem {track} --file-locks {external}'.format(
@@ -77,11 +78,11 @@ class CRIUController:  # todo manage multiple pids
                 dir=dirname,
                 keep="" if not keep_alive else "--leave-running",
                 track="" if not track else "--prev-images-dir ../{}/".format(self.current_restored_parent),
-                external="--external unix[{}]".format(external) if external else ''
+                external="--external" + "".join([f" unix[{s}]" for s in external]) if external else ''
             )
         print(command)
         returncode = subprocess.call(command.split())
-        print("!!!!!!!DUMPTIME", time.time() - dump_t)
+        print("DUMPTIME", time.time() - dump_t)
         # if returncode != 0:
         #     raise ChildProcessError("CRIU PROCESS ERROR!")
         self.current_restored_parent = self.current_restored
@@ -110,7 +111,7 @@ class CRIUController:  # todo manage multiple pids
         # if parent_id:
         #     track = True
         subprocess.Popen(
-            './criu-ns restore --images-dir {dir} --shell-job --tcp-established --ext-unix-sk --ghost 1900M --track-mem {track} --file-locks --tcp-close'.format(
+            './criu-ns restore --images-dir {dir} --shell-job --tcp-established --ext-unix-sk --ghost 1900M --track-mem {track} --file-locks'.format(
                 dir=os.path.join(self.CRIU_BASE_DIR, str(dump_id)),
                 track="" if not track else "--prev-images-dir ../{}/".format(parent_id)
             ).split())

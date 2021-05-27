@@ -30,8 +30,15 @@ function resolveUrl(url, baseUrl) {
     return null;
 }
 
-let GetElementsHandlers = async function* (ArrayJsHandle, page) {
-    let arrayLen = await page.evaluate(a => a.length, ArrayJsHandle);
+var GetElementsHandlers = async function* (ArrayJsHandle, page) {
+    // page.evaluate(a => {if (a){return a.length;} else {return 0;}}, ArrayJsHandle)
+    let arrayLen = 0;
+    try {
+        arrayLen = await page.evaluate(a => a.length, ArrayJsHandle);
+    } catch (e) {
+        console.log(e);
+    }
+    console.log(arrayLen);
     for (let i = 0; i < arrayLen; i++) {
         yield await page.evaluateHandle(function (arr, i) {
             return arr[i];
@@ -57,7 +64,7 @@ function collectAllElementsDeep(selector = null) {
     return selector ? allElements.filter(el => el.matches(selector)) : allElements;
 }
 
-let GetLinks = async function (page) {
+var GetLinks = async function (page) {
     const current_url = page.url()
     let JsArrayHandle;
     try {

@@ -83,8 +83,14 @@ io.sockets.on('connection', async function (socket) {
 
         crawler.on("pageInitialized", async (e, crawler) => {
           console.log("page initialized");
-          await send_links_collected(true_socket[true_socket.length - 1], await GetLinks(crawler.page()));
-          await send_initial_html(true_socket[true_socket.length - 1], await get_html(crawler));
+          try {
+            let links = await GetLinks(crawler.page());
+            await send_links_collected(true_socket[true_socket.length - 1], links);
+            await send_initial_html(true_socket[true_socket.length - 1], await get_html(crawler));
+          } catch (e) {
+            console.log(e);
+          }
+          console.log("page initialized finished!");
         });
         crawler.on("start", async e => {
           console.log("crawler started");
@@ -124,7 +130,7 @@ io.sockets.on('connection', async function (socket) {
             let url = crawler.page().url()
             if (url in events_whitelist) {
               if (e.params.node in events_whitelist[url]) {
-                if (e.params.event in events_whitelist[url][e.params.node]) {
+                if (events_whitelist[url][e.params.node].findIndex(x=> x === e.params.event) !== -1) {
                   console.log("triggerevent event in whitelist", e.params.event, e.params.node);
                   return true;
                 }

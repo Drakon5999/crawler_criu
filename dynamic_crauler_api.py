@@ -90,6 +90,7 @@ class DynamicAPI:
         self.PendingUrls.clear()
 
     async def _links_collected(self, data):
+        print('link_collected')
         for url in data['urls']:
             await self._collect_url(url)
 
@@ -165,6 +166,7 @@ class DynamicAPI:
         await self.IsServerReady.wait()
         async with self.ServerReadyLock:
             if self.IsServerReady.is_set():
+                # print("WHITELIST", self.WhiteListEvents)
                 task['events_whitelist'] = self.WhiteListEvents
                 await self.sio.emit('new_task', task)
 
@@ -209,6 +211,7 @@ class DynamicAPI:
 
     async def send_continue(self):
         async with self.AnalysedLock:
+            # print("CONTINUE WHITELIST", self.WhiteListEvents)
             await self.sio.emit("continue", self.WhiteListEvents)
             pass
 
@@ -229,26 +232,28 @@ class DynamicAPI:
             return None
 
 
+# for tests only
 async def test_main():
-    # api = await (DynamicAPI().init())
+    api = await (DynamicAPI().init())
     # await api.add_task({"url": "https://translate.yandex.ru"})
-    # # await api.add_task({"url": "https://security-crawl-maze.app/javascript/frameworks/angular/"})
-    # # await asyncio.sleep(5)
-    # # print("send continue")
-    # # await api.send_continue()
-    # # print("wait")
-    # results = await api.get_results()
-    # # print("got it")
-    # # await asyncio.sleep(50)
-    #
-    # # # print(results)
-    # # print("restoring...")
-    # # print("send continue")
-    # # await api.sio.wait()
-    # await api.destroy()
+    await api.add_task({"url": "https://security-crawl-maze.app/javascript/frameworks/angular/"})
+    await asyncio.sleep(5)
+    print("send continue")
+    await api.send_continue()
+    print("wait")
+    results = await api.get_results()
+    print("got it")
+    await asyncio.sleep(50)
+
+    # print(results)
+    print("restoring...")
+    print("send continue")
+    await api.sio.wait()
+    await api.destroy()
 
     pass
 
 
 if __name__ == '__main__':
-    asyncio.run(test_main())
+    # asyncio.run(test_main())
+    pass

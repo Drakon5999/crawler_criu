@@ -5,7 +5,7 @@
   "main": "crawler.js",
   "private": true,
   "scripts": {
-    "ht_server": "../ht_server.js"
+    "ht_server": "node ht_server.js"
   },
   "dependencies": {
     "async-mutex": "^0.3.1",

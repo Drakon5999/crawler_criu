@@ -1,5 +1,5 @@
-python-socketio
-requests
-aiohttp
-sortedcontainers
-beautifulsoup4
+python-socketio==5.1.0
+aiohttp==3.7.4.post0
+sortedcontainers==2.3.0
+beautifulsoup4==4.9.3
+requests==2.25.1
